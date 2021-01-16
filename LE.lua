@@ -1,14 +1,17 @@
 --[[
-https://gist.github.com/johnd0e/5110ddfb3291928a7f484cd38f23ff87#file-le-lua
+https://gist.github.com/johnd0e/5110ddfb3291928a7f484cd38f23ff87
+https://forum.farmanager.com/viewtopic.php?t=7988
 https://forum.farmanager.com/viewtopic.php?t=7521
 ]]
 
 local Info = Info or package.loaded.regscript or function(...) return ... end --luacheck: ignore 113/Info
 local nfo = Info { _filename or ...,
 	name		= "Lua Explorer Advanced";
-	description	= "Explore Lua environment in your Far manager";
+	description	= "Explore Lua environment in your Far manager (+@Xer0X mod.)";
 	version		= "2.4";
+	version_mod	= "1.0";
 	author		= "jd";
+	author_mod	= "Xer0X";
 	url		= "http://forum.farmanager.com/viewtopic.php?f=60&t=7988";
 	id		= "C61B1E8D-71D4-445C-85A6-35EA1D5B6EF3";
 	licence		= [[
@@ -30,7 +33,7 @@ ANY USE IS AT YOUR OWN RISK.]];
 }
 if not nfo or nfo.disabled then return end
 local O = nfo.options
-assert(far,'This is LuaExplorer for Far manager')
+assert(far, 'This is LuaExplorer for Far manager')
 local uuid	= win.Uuid('7646f761-8954-42ca-9cfc-e3f98a1c54d3')
 nfo.helpstr	= [[
 
@@ -518,7 +521,7 @@ end
 return "break"
 -- @@@
 		end;},
-	{BreakKey = 'BS', name = "goBack", action = function() return "goBack??" end}
+	{BreakKey = 'BS', name = "goBack", action = function() return "goBack" end}
 }
 
 --[[ if LuaJIT is used,
@@ -540,8 +543,8 @@ then    funcinfo = require('jit.util').funcinfo
 	})
 end
 
-for ii = 1, #brkeys do
-	local bk = brkeys[ii];
+for ii = 1, #brkeys 
+do	local bk = brkeys[ii];
 	if bk.name then	brkeys[bk.name] = bk.action end
 end
 
