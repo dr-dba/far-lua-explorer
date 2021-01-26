@@ -118,13 +118,15 @@ end
 
 -- create sorted menu items with associated keys
 local function makeMenuItems(obj)
-	local items = {}
+	local items = { }
+	local item_props = { }
 	-- grab all 'real' keys
 	for key in pairs(obj)
 	do	local sval, vt = fnc_val_fmt(obj[key], 'list')
 		if not	omit[vt]
 		then	table.insert(items, fnc_make_menu_items(key, sval, vt))
 		end
+		item_props[key] = obj[key]
 	end
 	--[[ Far uses some properties that in fact are functions in obj.properties
 	but they logically belong to the object itself. It's all Lua magic ;) ]]
@@ -134,6 +136,7 @@ local function makeMenuItems(obj)
 	if	type(props) == 'table'
 	and not rawget(obj, 'properties')
 	then
+		item_props.__HIDDEN_PROPS_HACK__ = true
 	--	if type(obj.properties) == 'table' and not rawget(obj, 'properties') then
 		-- todo use list of APanel Area BM CmdLine Dlg Drv Editor Far Help Menu Mouse Object PPanel Panel Plugin Viewer
 		for key in pairs(obj.properties)
@@ -141,6 +144,7 @@ local function makeMenuItems(obj)
 			if not	omit[vt]
 			then	table.insert(items, fnc_make_menu_items(key, sval, vt))
 			end
+			item_props[key] = obj[key]
 		end
 	end
 --[[
@@ -168,7 +172,7 @@ local function makeMenuItems(obj)
 		end
 	end)
 --]]
-	return items
+	return items, item_props
 end
 
 local function getres(stat, ...) return stat, stat and {...} or (...) and tostring(...) or '', select('#', ...) end
@@ -311,7 +315,7 @@ local function process(obj, title, action, obj_root)
 	end
 	-- show this menu level again after each return from a submenu/function call ...
 	repeat
-		local menu_items = makeMenuItems(obj)
+		local menu_items, item_props = makeMenuItems(obj)
 		mprops.Title = title..'  ('..#menu_items..')'..(omit['function'] and '*' or '')
 		if	tbl_ro_stack
 		and 	#tbl_ro_stack > 0
@@ -335,7 +339,7 @@ local function process(obj, title, action, obj_root)
 					table.insert(tbl_ro_chain, { obj = obj_child, menu_idx = index, menu_item = item })
 					obj_ret = process(obj_child, title_child, nil, obj_root)
 				elseif	item.action
-				then	if item.action(obj, key, title_child) == "break" then return end
+				then	if item.action(obj, key, title_child, item_props) == "break" then return end
 				end
 			end
 		end
@@ -442,14 +446,15 @@ end
 -- @@@
 		end;},
 	{ BreakKey = 'Alt+F4', name = 'edit',
-		action = function(obj, key, kpath)
+		action = function(obj, key, kpath, props)
 -- ###
 local	fnc_test = obj[key]
 local	test_is_func = type(fnc_test) == 'function'
 local	test_is_info =
-	obj.linedefined and
-	obj.source and
-	type(obj.func) == 'function'
+	not	props.__HIDDEN_PROPS_HACK__
+	and	obj.linedefined
+	and	obj.source
+	and type(obj.func) == 'function'
 if 	test_is_func
 or	test_is_info
 then
@@ -543,7 +548,7 @@ then    funcinfo = require('jit.util').funcinfo
 	})
 end
 
-for ii = 1, #brkeys 
+for ii = 1, #brkeys
 do	local bk = brkeys[ii];
 	if bk.name then	brkeys[bk.name] = bk.action end
 end
