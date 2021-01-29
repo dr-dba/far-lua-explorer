@@ -9,7 +9,7 @@ local nfo = Info { _filename or ...,
 	name		= "Lua Explorer Advanced";
 	description	= "Explore Lua environment in your Far manager (+@Xer0X mod.)";
 	version		= "2.4";
-	version_mod	= "1.0";
+	version_mod	= "1.3";
 	author		= "jd";
 	author_mod	= "Xer0X";
 	url		= "http://forum.farmanager.com/viewtopic.php?f=60&t=7988";
@@ -116,11 +116,21 @@ local function fnc_make_menu_items(val_key, sval, val_type)
 	}
 end
 
+local function fnc_is_LE_obj(obj)
+	return 2 < ( 0
+		+ ("nil" ~= type(obj.obj)	and 1 or 0)
+		+ ("nil" ~= type(obj.menu_idx ) and 1 or 0)
+		+ ("nil" ~= type(obj.menu_item) and 1 or 0)
+		+ ("nil" ~= type(obj.menu_item) and 1 or 0)
+		+ ("nil" ~= type(obj.child_menu_item_txt) and 1 or 0)
+		+ ("nil" ~= type(obj.child_menu_item_idx) and 1 or 0)
+			)
+end
+
 -- create sorted menu items with associated keys
 local function makeMenuItems(obj, obj_nav)
 	local items = { }
 	local item_props = { }
-	local obj_nav_idx
 	-- grab all 'real' keys
 	for key in pairs(obj)
 	do	local sval, vt = fnc_val_fmt(obj[key], 'list')
@@ -155,8 +165,7 @@ local function makeMenuItems(obj, obj_nav)
 		then	return v1.type == 'table'
 		else    return v1.text < v2.text
 		end
-	end)
---]]
+	end) --]]
 ---[[
 	table.sort(items, function(v1, v2)
 		if
@@ -171,12 +180,15 @@ local function makeMenuItems(obj, obj_nav)
 			else    return v1.text < v2.text
 			end
 		end
-	end)
---]]
-	for key, val in pairs(items)
-	do	if	val.key == obj_nav
-		then	obj_nav_idx = key
-			break
+	end) --]]
+	local	obj_nav_idx
+	if	obj_nav
+	then	local obj_nav_val = fnc_is_LE_obj(obj_nav) and obj_nav.obj_val or obj_nav
+		for key, val in pairs(items)
+		do	if	val.key == obj_nav_val
+			then	obj_nav_idx = key
+				break
+			end
 		end
 	end
 	return items, item_props, obj_nav_idx
@@ -284,9 +296,21 @@ local function process(obj, title, action, obj_root, tbl_open_path)
 		then	tbl_ReOp_path = { }
 			tbl_reopen_paths[obj] = tbl_ReOp_path
 		elseif	#tbl_open_path > 0
-		then	while #tbl_ReOp_path > 0 do tbl_ReOp_path[#tbl_ReOp_path] = nil end
+		then	for ii = 1, #tbl_open_path, -1
+			do	local obj_path_item = table.remove(tbl_ReOp_path, 1)
+				if type(obj_path_item) == nil then break end
+				if not	fnc_is_LE_obj(tbl_open_path[ii])
+				and	obj_path_item.menu_item.key == tbl_open_path[ii]
+				then	local obj_new = { }
+					for ii_obj_key, ii_obj_val in pairs(obj_path_item)
+					do obj_new[ii_obj_key] = ii_obj_val
+					end
+					tbl_open_path[ii] = obj_new
+				end
+			end
+			while #tbl_ReOp_path > 0 do tbl_ReOp_path[#tbl_ReOp_path] = nil end
 		else	while #tbl_ReOp_path > 0
-			do	table.insert(tbl_open_path, table.remove(tbl_ReOp_path, 1))
+			do table.insert(tbl_open_path, table.remove(tbl_ReOp_path, 1))
 			end
 		end
 	end
@@ -330,6 +354,7 @@ local function process(obj, title, action, obj_root, tbl_open_path)
 		local menu_items, item_props, obj_nav_idx = makeMenuItems(obj, tbl_open_path and tbl_open_path[1])
 		mprops.Title = title..' ('..#menu_items..')'..(omit['function'] and '*' or '')
 		mprops.SelectIndex = obj_nav_idx or tbl_cur_obj.child_menu_item_idx
+		tbl_cur_obj.obj_props = item_props
 		if	tbl_open_path
 		and 	#tbl_open_path > 0
 		then	menu_item= tbl_open_path[1].menu_item or obj_nav_idx and menu_items[obj_nav_idx]
@@ -351,15 +376,16 @@ local function process(obj, title, action, obj_root, tbl_open_path)
 			then
 				obj_ret = "back"
 			else
-				local key = menu_item.key or menu_idx > 0 and menu_items[menu_idx].key
-				local title_child = (title ~= '' and title..'.' or title)..tostring(key)
+				local obj_key_child = menu_item.key or menu_idx > 0 and menu_items[menu_idx].key
+				local title_child = (title ~= '' and title..'.' or title)..tostring(obj_key_child)
 				if	menu_item.key ~= nil
-				then	local obj_child = obj[key]
+				then	local obj_child = obj[obj_key_child]
 					if type(obj_child) ~= "nil"
 					then	table.insert(tbl_ReOp_path, {
-							obj = obj_child,
-							menu_idx = menu_idx,
-							menu_item = menu_item,
+							obj_val = obj_child,
+							obj_key = obj_key_child,
+							menu_idx	= menu_idx,
+							menu_item	= menu_item,
 							child_menu_item_txt = obj_nav and obj_nav.child_menu_item_txt,
 							child_menu_item_idx = obj_nav and obj_nav.child_menu_item_idx,
 						})
@@ -373,7 +399,7 @@ local function process(obj, title, action, obj_root, tbl_open_path)
 						end
 					end
 				elseif	menu_item.action
-				then	if menu_item.action(obj, key, title_child, item_props) == "break" then return end
+				then	if menu_item.action(obj, obj_key_child, title_child, item_props) == "break" then return end
 				end
 			end
 		end
