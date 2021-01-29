@@ -117,9 +117,10 @@ local function fnc_make_menu_items(val_key, sval, val_type)
 end
 
 -- create sorted menu items with associated keys
-local function makeMenuItems(obj)
+local function makeMenuItems(obj, obj_nav)
 	local items = { }
 	local item_props = { }
+	local obj_nav_idx
 	-- grab all 'real' keys
 	for key in pairs(obj)
 	do	local sval, vt = fnc_val_fmt(obj[key], 'list')
@@ -172,7 +173,13 @@ local function makeMenuItems(obj)
 		end
 	end)
 --]]
-	return items, item_props
+	for key, val in pairs(items)
+	do	if	val.key == obj_nav
+		then	obj_nav_idx = key
+			break
+		end
+	end
+	return items, item_props, obj_nav_idx
 end
 
 local function getres(stat, ...) return stat, stat and {...} or (...) and tostring(...) or '', select('#', ...) end
@@ -193,8 +200,7 @@ local function luaexp_prompt(Title, Prompt, Src, nArgs)
 		if not	expr then break end
 		local	f, err = loadstring('return '..expr)
 		if	f
-		then
-			local	stat, res, n = getres(pcall(f))
+		then	local	stat, res, n = getres(pcall(f))
 			if	stat
 			then
 				if not nArgs or (nArgs == n and not checknil(res, n))
@@ -261,29 +267,35 @@ end
 if not	_G.Xer0X.tbl_explorer_reopen_chain
 then	_G.Xer0X.tbl_explorer_reopen_chain = { }
 end
-local tbl_reopen_chain = Xer0X.tbl_explorer_reopen_chain
-local tbl_ro_chain
-local tbl_ro_stack
+local tbl_reopen_paths = Xer0X.tbl_explorer_reopen_chain
+
 -- show a menu whose items are associated with the members of given object
-local function process(obj, title, action, obj_root)
-	if not	obj_root
-	then	obj_root = obj
-		tbl_ro_chain = tbl_reopen_chain[obj_root]
-		if not	tbl_ro_chain
-		then	tbl_ro_chain = { }
-			tbl_reopen_chain[obj_root] = tbl_ro_chain
+local function process(obj, title, action, obj_root, tbl_open_path)
+	local tbl_ReOp_path, is_obj_root
+	if	obj_root
+	then	tbl_ReOp_path = tbl_reopen_paths[obj_root]
+	else	tbl_ReOp_path = tbl_reopen_paths[obj]
+		is_obj_root = true
+		obj_root = obj
+		if not	tbl_open_path
+		then	tbl_open_path = { }
 		end
-		if 	#tbl_ro_chain > 0
-		then	tbl_ro_stack = tbl_ro_chain
-			tbl_ro_chain = { }
-			tbl_reopen_chain[obj_root] = tbl_ro_chain
+		if not	tbl_ReOp_path
+		then	tbl_ReOp_path = { }
+			tbl_reopen_paths[obj] = tbl_ReOp_path
+		elseif	#tbl_open_path > 0
+		then	while #tbl_ReOp_path > 0 do tbl_ReOp_path[#tbl_ReOp_path] = nil end
+		else	while #tbl_ReOp_path > 0
+			do	table.insert(tbl_open_path, table.remove(tbl_ReOp_path, 1))
+			end
 		end
 	end
+	local tbl_cur_obj = is_obj_root and tbl_ReOp_path or tbl_ReOp_path[#tbl_ReOp_path]
 	title = type(title) == "string" and title or ''
 	if action and brkeys[action] then brkeys[action]({ obj }, 1, title); return end
 	local	mprops = { Id = uuid, Bottom = 'F1, F3, F4, Del, Ctrl+M', Flags = { FMENU_SHOWAMPERSAND = 1, FMENU_WRAPMODE = 1 } }
 	local	obj_type = type(obj)
-	local	item, index, obj_ret
+	local	menu_item, menu_idx, obj_ret, obj_nav
 	--[[ some member types, need specific behavior:
 	* tables are submenus
 	* functions can be called --]]
@@ -315,41 +327,59 @@ local function process(obj, title, action, obj_root)
 	end
 	-- show this menu level again after each return from a submenu/function call ...
 	repeat
-		local menu_items, item_props = makeMenuItems(obj)
-		mprops.Title = title..'  ('..#menu_items..')'..(omit['function'] and '*' or '')
-		if	tbl_ro_stack
-		and 	#tbl_ro_stack > 0
-		then	item = tbl_ro_stack[1].menu_item
-			index= tbl_ro_stack[1].menu_idx
-			table.remove(tbl_ro_stack, 1)
-		else	item, index = far.Menu(mprops, menu_items, brkeys)
+		local menu_items, item_props, obj_nav_idx = makeMenuItems(obj, tbl_open_path and tbl_open_path[1])
+		mprops.Title = title..' ('..#menu_items..')'..(omit['function'] and '*' or '')
+		mprops.SelectIndex = obj_nav_idx or tbl_cur_obj.child_menu_item_idx
+		if	tbl_open_path
+		and 	#tbl_open_path > 0
+		then	menu_item= tbl_open_path[1].menu_item or obj_nav_idx and menu_items[obj_nav_idx]
+			menu_idx = tbl_open_path[1].menu_idx  or obj_nav_idx
+			obj_nav = table.remove(tbl_open_path, 1)
+		else
+		--	mprops.SelectIndex = mprops.SelectIndex or tbl_cur_obj.child_menu_item_idx
+			menu_item, menu_idx = far.Menu(mprops, menu_items, brkeys)
 		end
-		mprops.SelectIndex = index
+		if	menu_idx
+		then	mprops.SelectIndex = menu_idx
+			tbl_cur_obj.child_menu_item_idx = menu_idx
+			tbl_cur_obj.child_menu_item_txt = menu_item.text
+		end
 		-- show submenu/call function ...
-		if	item
+		if	menu_item
 		then
-			if	item.name == "goBack"
+			if	menu_item.name == "goBack"
 			then
 				obj_ret = "back"
 			else
-				local key = item.key or index > 0 and menu_items[index].key
+				local key = menu_item.key or menu_idx > 0 and menu_items[menu_idx].key
 				local title_child = (title ~= '' and title..'.' or title)..tostring(key)
-				if	item.key ~= nil
+				if	menu_item.key ~= nil
 				then	local obj_child = obj[key]
-					table.insert(tbl_ro_chain, { obj = obj_child, menu_idx = index, menu_item = item })
-					obj_ret = process(obj_child, title_child, nil, obj_root)
-				elseif	item.action
-				then	if item.action(obj, key, title_child, item_props) == "break" then return end
+					if type(obj_child) ~= "nil"
+					then	table.insert(tbl_ReOp_path, {
+							obj = obj_child,
+							menu_idx = menu_idx,
+							menu_item = menu_item,
+							child_menu_item_txt = obj_nav and obj_nav.child_menu_item_txt,
+							child_menu_item_idx = obj_nav and obj_nav.child_menu_item_idx,
+						})
+						obj_ret = process(obj_child, title_child, nil, obj_root, tbl_open_path)
+						if	obj_ret ~= "exit"
+						then	obj_rem = table.remove(tbl_ReOp_path)
+							if	obj_ret == "back"
+							then -- !! NO PROPAGATION:
+								obj_ret = nil
+							end
+						end
+					end
+				elseif	menu_item.action
+				then	if menu_item.action(obj, key, title_child, item_props) == "break" then return end
 				end
 			end
 		end
 	-- until the user is bored and goes back ;)
-	until not item or obj_ret == "exit" or obj_ret == "back"
-	if	obj_ret == "back"
-	then	obj_ret = nil
-		table.remove(tbl_ro_chain)
-	end
-	return obj_ret or not item and "exit"
+	until not menu_item or obj_ret == "exit" or obj_ret == "back"
+	return obj_ret or not menu_item and "exit"
 end
 
 local function fnc_upvals_collect(fnc_inp, num_vals)
