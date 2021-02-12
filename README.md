@@ -8,7 +8,7 @@ https://forum.farmanager.com/viewtopic.php?t=7988
 
 changes are:
 * Retentive, i.e. reopened on the same object (=table) subelement
-* Ability to navigate by given path, <br />
+* Ability to navigate by the given path, <br />
 for example this:<br />
 lua`:LE(_G, nil, nil, nil, {"Area"})`<br />
 .. will open the `"_G=>Area`" table<br />
