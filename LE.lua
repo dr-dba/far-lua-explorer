@@ -10,7 +10,7 @@ local nfo = Info { _filename or ...,
 	description	= "Explore Lua environment in your Far manager (+@Xer0X mod.)";
 	id		= "C61B1E8D-71D4-445C-85A6-35EA1D5B6EF3";
 	version		= "2.4";
-	version_mod	= "1.4.1";
+	version_mod	= "1.4.2";
 	author		= "jd";
 	author_mod	= "Xer0X";
 	url		= "http://forum.farmanager.com/viewtopic.php?f=60&t=7988";
@@ -93,9 +93,9 @@ local function fnc_val_fmt(val, mode)
 		then	val_res = '"'..val_res..'"'
 		end
 	elseif
-		val_type == 'number'
+		val_type == "number"
 	then
-		val_res = (mode == 'edit' and '0x%x ' or '0x%08x (%s)'):format(val, val)
+		val_res = (mode == "edit" and "0x%x --[[ %s ]]" or "0x%08x (%s)"):format(val, val)
 	else
 		val_res = tostring(val)
 	end
@@ -142,14 +142,14 @@ local function makeMenuItems(obj, obj_nav)
 	end
 	--[[ Far uses some properties that in fact are functions in obj.properties
 	but they logically belong to the object itself. It's all Lua magic ;) ]]
---	if getmetatable(obj) == "access denied" then ...
+--!	if getmetatable(obj) == "access denied" then ...
 	local success, props = pcall(function() return obj.properties end)
---	if not success then far.Message(props,'Error in __index metamethod', nil, 'wl') end
+--!	if not success then far.Message(props,'Error in __index metamethod', nil, 'wl') end
 	if	type(props) == 'table'
 	and not rawget(obj, 'properties')
 	then
 		item_props.__HIDDEN_PROPS_HACK__ = true
-	--	if type(obj.properties) == 'table' and not rawget(obj, 'properties') then
+	--!	if type(obj.properties) == 'table' and not rawget(obj, 'properties') then
 		-- todo use list of APanel Area BM CmdLine Dlg Drv Editor Far Help Menu Mouse Object PPanel Panel Plugin Viewer
 		for key in pairs(obj.properties)
 		do	local sval, vt = fnc_val_fmt(obj[key], 'list')
@@ -159,11 +159,11 @@ local function makeMenuItems(obj, obj_nav)
 			item_props[key] = obj[key]
 		end
 	end
-	--[[
+	--[[!
 	table.sort(items, function(v1, v2) 
 		return v1.text < v2.text 
 	end) --]]
-	--[[
+	--[[!
 	table.sort(items, function(v1, v2)
 		if O.tables_first and (v1.type == 'table') ~= (v2.type == 'table')
 		then	return v1.type == 'table'
@@ -184,7 +184,7 @@ local function makeMenuItems(obj, obj_nav)
 			else    return v1.text < v2.text
 			end
 		end
-	end)
+	end) --]]
 	local	obj_nav_idx
 	if	obj_nav
 	then	local obj_nav_val = fnc_is_LE_obj(obj_nav) and obj_nav.obj_val or obj_nav
@@ -204,7 +204,7 @@ local function checknil(t, n) for ii = 1, n do if t[ii] == nil then return true 
 
 -- custom concat (applies 'tostring' to each item)
 local function concat(tbl_inp, delim, pos1, pos2)
---	assert(delim and pos1 and pos2)
+--!	assert(delim and pos1 and pos2)
 	local str = pos2 > 0 and tostring(tbl_inp[pos1]) or ''
 	for ii = pos1 + 1, pos2 do str = str..delim..tostring(tbl_inp[ii]) end
 	return str
@@ -365,7 +365,7 @@ local function process(obj, title, action, obj_root, tbl_open_path)
 			menu_idx = tbl_open_path[1].menu_idx  or obj_nav_idx
 			obj_nav = table.remove(tbl_open_path, 1)
 		else
-		--	mprops.SelectIndex = mprops.SelectIndex or tbl_cur_obj.child_menu_item_idx
+		--!	mprops.SelectIndex = mprops.SelectIndex or tbl_cur_obj.child_menu_item_idx
 			menu_item, menu_idx = far.Menu(mprops, menu_items, brkeys)
 		end
 		if	menu_idx
@@ -397,7 +397,7 @@ local function process(obj, title, action, obj_root, tbl_open_path)
 						if	obj_ret ~= "exit"
 						then	obj_rem = table.remove(tbl_ReOp_path)
 							if	obj_ret == "back"
-							then
+							then	--!!! NO PROPAGATION:
 								obj_ret = nil
 							end
 						end
@@ -440,7 +440,7 @@ brkeys = {
 	{ BreakKey = 'F9',	name = 'registry',
 		action = function(info) process(debug.getregistry(), 'debug.getregistry:') end;},
 	{ BreakKey = 'Ctrl+Insert',
-		action = function(obj, key) far.CopyToClipboard (fnc_val_fmt(obj[key]))  end},
+		action = function(obj, key) far.CopyToClipboard (fnc_val_fmt(obj[key])) --[[ todo: escape slashes etc]] end},
 	{ BreakKey = 'CtrlShift+Insert',
 		action = function(obj, key) far.CopyToClipboard(fnc_val_fmt(key, 'list')) end},
 	{ BreakKey = 'CtrlAlt+Insert',
@@ -482,7 +482,11 @@ then
 	local env = debug.getfenv(f)
 	local env_is_glob = env == _G
         process(env, 'getfenv: '..kpath..(env_is_glob and " (_G)" or ""))
-	
+	--[[
+	local dlg_res = far.Message('Show global environment?', '_G', ';OkCancel')
+	if (env ~= _G or dlg_res == 1) and env and next(env)
+	then process(env, 'getfenv: '..kpath)
+	end --]]
 end
 -- @@@
 		end;},
@@ -496,6 +500,7 @@ then
 	if	args:len() > 0
 	then	process(t, 'params (f): '..kpath)
 		local name = debug.getinfo(f).name
+	--	far.Message(('%s (%s)'):format(name or kpath,args), 'params')
 	end
 end
 -- @@@
@@ -515,7 +520,8 @@ or	test_is_info
 then
 	local	fnc_targ = test_is_func and fnc_test or obj.func
 	local	dbg_info = test_is_info and obj or debug.getinfo(fnc_targ, 'Slun')
-	
+	--[[ @Xer0X:do not gives current line:
+	debug.getinfo(fnc_targ, 'Slun') --]]
 	local	filename =
 		dbg_info.source:match("^@(.+)$")
 	local	fileline =
@@ -540,6 +546,7 @@ if	type(f) == 'function'
 then	process(debug.getinfo(f), 'debug.getinfo: '..kpath)
 elseif	type(f) == 'thread'
 then	far.Message(debug.traceback(f, "level 0", 0):gsub('\n\t','\n   '), 'debug.traceback: '..kpath, nil, "l")
+--	far.Show('debug.traceback: '..kpath..debug.traceback(f, ", level 0", 0))
 end
 -- @@@
 		end; },
@@ -606,7 +613,7 @@ do	local bk = brkeys[ii];
 	if bk.name then	brkeys[bk.name] = bk.action end
 end
 
-nfo.execute = function() process(_G, '')  end
+nfo.execute = function() process(_G, '') --[[ require("le")(_G,'_G') ]] end
 
 if	Macro
 then
