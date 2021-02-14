@@ -4,16 +4,17 @@ https://forum.farmanager.com/viewtopic.php?t=7988
 https://forum.farmanager.com/viewtopic.php?t=7521
 ]]
 
-local Info = Info or package.loaded.regscript or function(...) return ... end --luacheck: ignore 113/Info
+local Info = Info or package.loaded.regscript or function(...) return ... end -- luacheck: ignore 113/Info
 local nfo = Info { _filename or ...,
 	name		= "Lua Explorer Advanced";
 	description	= "Explore Lua environment in your Far manager (+@Xer0X mod.)";
+	id		= "C61B1E8D-71D4-445C-85A6-35EA1D5B6EF3";
 	version		= "2.4";
-	version_mod	= "1.3";
+	version_mod	= "1.4.1";
 	author		= "jd";
 	author_mod	= "Xer0X";
 	url		= "http://forum.farmanager.com/viewtopic.php?f=60&t=7988";
-	id		= "C61B1E8D-71D4-445C-85A6-35EA1D5B6EF3";
+	url_mod		= "https://github.com/dr-dba/far-lua-explorer";
 	licence		= [[
 based on Lua Explorer by EGez:
 http://forum.farmanager.com/viewtopic.php?f=15&t=7521
@@ -25,8 +26,8 @@ ANY USE IS AT YOUR OWN RISK.]];
 		tables_first = true,
 		ignore_case = true,
 		chars = {
-			['table'] = '≡',    --⁞≡•·÷»›►
-			['function'] = '˜', --ᶠ¨˝˜
+			['table'] = '≡',    -- ⁞≡•·÷»›►
+			['function'] = '˜', -- ᶠ¨˝˜
 		},
 		bin_string = '#string',
 	};
@@ -63,7 +64,7 @@ Copy to clipboard:
 Ctrl+Ins        value
 Ctrl+Shift+Ins  key
 ]]
-
+if not Xer0X then Xer0X = { } end
 local omit = {}
 local brkeys = {}
 
@@ -94,7 +95,7 @@ local function fnc_val_fmt(val, mode)
 	elseif
 		val_type == 'number'
 	then
-		val_res = (mode == 'edit' and '0x%x --[[ %s ]]' or '0x%08x (%s)'):format(val, val)
+		val_res = (mode == 'edit' and '0x%x ' or '0x%08x (%s)'):format(val, val)
 	else
 		val_res = tostring(val)
 	end
@@ -158,15 +159,18 @@ local function makeMenuItems(obj, obj_nav)
 			item_props[key] = obj[key]
 		end
 	end
---[[
-	table.sort(items, function(v1, v2) return v1.text < v2.text end)
+	--[[
+	table.sort(items, function(v1, v2) 
+		return v1.text < v2.text 
+	end) --]]
+	--[[
 	table.sort(items, function(v1, v2)
 		if O.tables_first and (v1.type == 'table') ~= (v2.type == 'table')
 		then	return v1.type == 'table'
 		else    return v1.text < v2.text
 		end
-	end) --]]
----[[
+	end) ]]
+-- [[
 	table.sort(items, function(v1, v2)
 		if
 			O.tables_first and v1.type ~= v2.type
@@ -180,7 +184,7 @@ local function makeMenuItems(obj, obj_nav)
 			else    return v1.text < v2.text
 			end
 		end
-	end) --]]
+	end)
 	local	obj_nav_idx
 	if	obj_nav
 	then	local obj_nav_val = fnc_is_LE_obj(obj_nav) and obj_nav.obj_val or obj_nav
@@ -194,7 +198,7 @@ local function makeMenuItems(obj, obj_nav)
 	return items, item_props, obj_nav_idx
 end
 
-local function getres(stat, ...) return stat, stat and {...} or (...) and tostring(...) or '', select('#', ...) end
+local function getres(stat, ...) return stat, stat and { ... } or (...) and tostring(...) or '', select('#', ...) end
 
 local function checknil(t, n) for ii = 1, n do if t[ii] == nil then return true end end end
 
@@ -261,7 +265,7 @@ local function insertValue(obj, title)
 end
 
 local function getfParamsNames(f)
-	-- check _VERSION>"Lua 5.1"
+	-- check _VERSION > "Lua 5.1"
 	if not jit then	return '...' end
 	local info = debug.getinfo(f)
 	local params = {}
@@ -317,9 +321,9 @@ local function process(obj, title, action, obj_root, tbl_open_path)
 	local tbl_cur_obj = is_obj_root and tbl_ReOp_path or tbl_ReOp_path[#tbl_ReOp_path]
 	title = type(title) == "string" and title or ''
 	if action and brkeys[action] then brkeys[action]({ obj }, 1, title); return end
-	local	mprops = { Id = uuid, Bottom = 'F1, F3, F4, Del, Ctrl+M', Flags = { FMENU_SHOWAMPERSAND = 1, FMENU_WRAPMODE = 1 } }
+	local	mprops = { Id = uuid, Bottom = 'F1, F3, F4, Del, Ctrl+M', Flags = { FMENU_SHOWAMPERSAND = 1, FMENU_WRAPMODE = 1}}
 	local	obj_type = type(obj)
-	local	menu_item, menu_idx, obj_ret, obj_nav
+	local	menu_item, menu_idx, obj_ret, obj_rem, obj_nav
 	--[[ some member types, need specific behavior:
 	* tables are submenus
 	* functions can be called --]]
@@ -335,7 +339,7 @@ local function process(obj, title, action, obj_root, tbl_open_path)
 		local	stat, res = getres(pcall(obj, unpack(args, 1, n)))
 		if not	stat
 		then	far.Message(
-				('%s\n  CALL: %s (%s)\n  argument(s): %d'..(n>0 and ', evaluated as: %s' or ''))
+				('%s\n  CALL: %s (%s)\n  argument(s): %d'..(n > 0 and ', evaluated as: %s' or ''))
 					:format(res, title, expr, n, concat(args, ',', 1, n)),
 				'Error', nil, 'wl'
 			)
@@ -382,10 +386,10 @@ local function process(obj, title, action, obj_root, tbl_open_path)
 				then	local obj_child = obj[obj_key_child]
 					if type(obj_child) ~= "nil"
 					then	table.insert(tbl_ReOp_path, {
-							obj_val = obj_child,
-							obj_key = obj_key_child,
-							menu_idx	= menu_idx,
-							menu_item	= menu_item,
+							obj_val  = obj_child,
+							obj_key  = obj_key_child,
+							menu_idx = menu_idx,
+							menu_item= menu_item,
 							child_menu_item_txt = obj_nav and obj_nav.child_menu_item_txt,
 							child_menu_item_idx = obj_nav and obj_nav.child_menu_item_idx,
 						})
@@ -393,7 +397,7 @@ local function process(obj, title, action, obj_root, tbl_open_path)
 						if	obj_ret ~= "exit"
 						then	obj_rem = table.remove(tbl_ReOp_path)
 							if	obj_ret == "back"
-							then -- !! NO PROPAGATION:
+							then
 								obj_ret = nil
 							end
 						end
@@ -436,7 +440,7 @@ brkeys = {
 	{ BreakKey = 'F9',	name = 'registry',
 		action = function(info) process(debug.getregistry(), 'debug.getregistry:') end;},
 	{ BreakKey = 'Ctrl+Insert',
-		action = function(obj, key) far.CopyToClipboard (fnc_val_fmt(obj[key])) --[[todo: escape slashes etc]] end},
+		action = function(obj, key) far.CopyToClipboard (fnc_val_fmt(obj[key]))  end},
 	{ BreakKey = 'CtrlShift+Insert',
 		action = function(obj, key) far.CopyToClipboard(fnc_val_fmt(key, 'list')) end},
 	{ BreakKey = 'CtrlAlt+Insert',
@@ -465,8 +469,8 @@ then	local	dbg_info = debug.getinfo(fnc1)
 	end
 end
 -- @@@
-		end;},
-	{ BreakKey = 'Ctrl+Down',name = 'env',
+		end; },
+	{ BreakKey = 'Ctrl+Down', name = 'env',
 		action = function(obj, key, kpath)
 -- ###
 local	f = obj[key];
@@ -478,11 +482,7 @@ then
 	local env = debug.getfenv(f)
 	local env_is_glob = env == _G
         process(env, 'getfenv: '..kpath..(env_is_glob and " (_G)" or ""))
-	--[[
-	local dlg_res = far.Message('Show global environment?', '_G', ';OkCancel')
-	if (env ~= _G or dlg_res == 1) and env and next(env)
-	then process(env, 'getfenv: '..kpath)
-	end --]]
+	
 end
 -- @@@
 		end;},
@@ -496,7 +496,6 @@ then
 	if	args:len() > 0
 	then	process(t, 'params (f): '..kpath)
 		local name = debug.getinfo(f).name
-	--	far.Message(('%s (%s)'):format(name or kpath,args), 'params')
 	end
 end
 -- @@@
@@ -516,8 +515,7 @@ or	test_is_info
 then
 	local	fnc_targ = test_is_func and fnc_test or obj.func
 	local	dbg_info = test_is_info and obj or debug.getinfo(fnc_targ, 'Slun')
-	--[[ @Xer0X:do not gives current line:
-	debug.getinfo(fnc_targ, 'Slun') --]]
+	
 	local	filename =
 		dbg_info.source:match("^@(.+)$")
 	local	fileline =
@@ -542,27 +540,26 @@ if	type(f) == 'function'
 then	process(debug.getinfo(f), 'debug.getinfo: '..kpath)
 elseif	type(f) == 'thread'
 then	far.Message(debug.traceback(f, "level 0", 0):gsub('\n\t','\n   '), 'debug.traceback: '..kpath, nil, "l")
---	far.Show('debug.traceback: '..kpath..debug.traceback(f,", level 0",0))
 end
 -- @@@
-		end;},
+		end; },
 	{ BreakKey = 'F4',
-		action = function(obj, key, kpath) return key ~= nil and editValue(obj, key, kpath) end},
+		action = function(obj, key, kpath) return key ~= nil and editValue(obj, key, kpath) end },
 	{ BreakKey = 'Ctrl+F',
-		action = function()	omit['function']= not omit['function']	end},
+		action = function()	omit['function']= not omit['function']	end },
 	{ BreakKey = 'Ctrl+T',
-		action = function()	O.tables_first	= not O.tables_first	end},
+		action = function()	O.tables_first	= not O.tables_first	end },
 	{ BreakKey = 'Ctrl+I',
-		action = function()	O.ignore_case	= not O.ignore_case	end},
+		action = function()	O.ignore_case	= not O.ignore_case	end },
 	{ BreakKey = 'Ctrl+M', name = 'mt',
 		action = function(obj, key, kpath)
 -- ###
 local mt = key ~= nil and debug.getmetatable(obj[key])
 return mt and process(mt, 'METATABLE: '..kpath)
 -- @@@
-		end;},
-	{ BreakKey = 'DELETE',	action = function(obj, key, kpath) return key ~= nil and editValue(obj, key, kpath, true) end},
-	{ BreakKey = 'INSERT',	action = function(obj, key, kpath) insertValue(obj, kpath:sub(1, -(#tostring(key) + 2))) end},
+		end; },
+	{ BreakKey = 'DELETE',	action = function(obj, key, kpath) return key ~= nil and editValue(obj, key, kpath, true) end },
+	{ BreakKey = 'INSERT',	action = function(obj, key, kpath) insertValue(obj, kpath:sub(1, -(#tostring(key) + 2))) end },
 	{ BreakKey = 'F1',	action = function() nfo:help() end},
 	{ BreakKey = nil,	name = 'addBrKeys',
 		action = function(obj, key)
@@ -581,14 +578,14 @@ do	local bk = addbrkeys[ii]
 end
 return "break"
 -- @@@
-		end;},
-	{BreakKey = 'BS', name = "goBack", action = function() return "goBack" end}
+		end; },
+	{ BreakKey = 'BS', name = "goBack", action = function() return "goBack" end }
 }
 
 --[[ if LuaJIT is used,
 maybe we can show some more function info]]
 if	jit
-then    funcinfo = require('jit.util').funcinfo
+then    local funcinfo = require('jit.util').funcinfo
 	table.insert(brkeys, {
 		BreakKey = 'Shift+F3',
 		action = function(obj, key, kpath)
@@ -609,7 +606,7 @@ do	local bk = brkeys[ii];
 	if bk.name then	brkeys[bk.name] = bk.action end
 end
 
-nfo.execute = function() process(_G, '') --[[ require("le")(_G,'_G') ]] end
+nfo.execute = function() process(_G, '')  end
 
 if	Macro
 then
@@ -629,3 +626,4 @@ end
 lua:dofile(win.GetEnv("FARPROFILE")..[[\Macros\scripts\le.lua] ])(_G,'_G')
 lua:require("le")(_G,'_G')
 --]]
+-- @@@@@
