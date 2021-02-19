@@ -10,7 +10,7 @@ local nfo = Info { _filename or ...,
 	description	= "Explore Lua environment in your Far manager (+@Xer0X mod.)";
 	id		= "C61B1E8D-71D4-445C-85A6-35EA1D5B6EF3";
 	version		= "2.4";
-	version_mod	= "1.4.1";
+	version_mod	= "1.4.2";
 	author		= "jd";
 	author_mod	= "Xer0X";
 	url		= "http://forum.farmanager.com/viewtopic.php?f=60&t=7988";
@@ -135,8 +135,7 @@ local function makeMenuItems(obj, obj_nav)
 		then	table.insert(items, fnc_make_menu_items(key, sval, vt))
 		end
 		item_props[key] = obj[key]
-	end
-	
+	end	
 --	if getmetatable(obj) == "access denied" then ...
 	local success, props = pcall(function() return obj.properties end)
 --	if not success then far.Message(props,'Error in __index metamethod', nil, 'wl') end
@@ -163,7 +162,7 @@ local function makeMenuItems(obj, obj_nav)
 		then	return v1.type == 'table'
 		else    return v1.text < v2.text
 		end
-	end) ]]
+	end) --]]
 	table.sort(items, function(v1, v2)
 		if
 			O.tables_first and v1.type ~= v2.type
