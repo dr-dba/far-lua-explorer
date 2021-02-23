@@ -10,7 +10,7 @@ local nfo = Info { _filename or ...,
 	description	= "Explore Lua environment in your Far manager (+@Xer0X mod.)";
 	id		= "C61B1E8D-71D4-445C-85A6-35EA1D5B6EF3";
 	version		= "2.4";
-	version_mod	= "1.4.2";
+	version_mod	= "1.4.4";
 	author		= "jd";
 	author_mod	= "Xer0X";
 	url		= "http://forum.farmanager.com/viewtopic.php?f=60&t=7988";
@@ -437,14 +437,24 @@ local function syncUpvalues(f, t, n)
 end
 
 brkeys = {
-	{ BreakKey = 'F9',	name = 'registry',
+	{ BreakKey = 'F9', name = 'registry',
 		action = function(info) process(debug.getregistry(), 'debug.getregistry:') end;},
 	{ BreakKey = 'Ctrl+Insert',
-		action = function(obj, key) far.CopyToClipboard (fnc_val_fmt(obj[key])) --[[ todo: escape slashes etc]] end},
+		action = function(obj, key)
+			-- todo: escape slashes etc
+			local copy_val, copy_type = fnc_val_fmt(obj[key])
+			far.CopyToClipboard(copy_val)
+		end},
 	{ BreakKey = 'CtrlShift+Insert',
-		action = function(obj, key) far.CopyToClipboard(fnc_val_fmt(key, 'list')) end},
+		action = function(obj, key) 
+			local copy_val, copy_type = fnc_val_fmt(key, 'list')
+			far.CopyToClipboard(copy_val) 
+		end},
 	{ BreakKey = 'CtrlAlt+Insert',
-		action = function(obj, key, kpath) far.CopyToClipboard(kpath:gsub('^_G%.','')..fnc_val_fmt(key, 'list')) end},
+		action = function(obj, key, kpath)
+			local copy_val, copy_type = fnc_val_fmt(key, 'list')
+			far.CopyToClipboard(kpath:gsub('^_G%.','')..copy_val) 
+		end},
 	{ BreakKey = 'Ctrl+Up',	name = 'upvalues',
 		action = function(obj, key, kpath)
 -- ###
