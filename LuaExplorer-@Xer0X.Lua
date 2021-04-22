@@ -1,4 +1,7 @@
---[[!
+--[[
+if true then return end --]]
+
+--[[
 https://gist.github.com/johnd0e/5110ddfb3291928a7f484cd38f23ff87
 https://forum.farmanager.com/viewtopic.php?t=7988
 https://forum.farmanager.com/viewtopic.php?t=7521
@@ -22,9 +25,10 @@ http://forum.farmanager.com/viewtopic.php?f=15&t=7521
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
 ANY USE IS AT YOUR OWN RISK.]];
 	help = function(nfo) far.Message(nfo.helpstr, ('%s v%s'):format(nfo.name,nfo.version), nil, "l") end;
-	options     = {
-		tables_first = true,
-		ignore_case = true,
+	options = {
+		sort_tables_first = true,
+		sort_ignore_case = true,
+		sort_apply = true,
 		chars = {
 			['table'] = '≡',    -- ⁞≡•·÷»›►
 			['function'] = '˜', -- ᶠ¨˝˜
@@ -42,6 +46,7 @@ There are some keys available:
 
 F1              Show this help
 F4              Edit selected object
+F9              Show registry
 Del             Delete selected object
 Ins             Add an object to current table
 Ctrl+M          Show metatable
@@ -53,20 +58,22 @@ for functions:
 
 Enter           Call function (params prompted)
 F3              Show some function info
-Shift+F3        Show some function info (LuaJIT required)
-Alt+F4          Open function definition (if available) in editor
+Shift+F3        Show some function info (LuaJiT required)
+Alt+F4          Open function definition (if available) in editor at current line
+Ctrl+Alt+F4     Open function definition (if available) in editor on declaration line start
+Ctrl+Right      The function params
 Ctrl+Up         Show upvalues (editable)
 Ctrl+Down       Show environment (editable)
-
 
 Copy to clipboard:
 
 Ctrl+Ins        value
+CtrlAlt+Insert  value without starting "_G.."
 Ctrl+Shift+Ins  key
 ]]
 if not Xer0X then Xer0X = { } end
-local omit = {}
-local brkeys = {}
+local tbl_omit_type = { }
+local brkeys = { }
 
 -- format values for menu items and message boxes
 local function fnc_val_fmt(val, mode)
@@ -99,14 +106,14 @@ local function fnc_val_fmt(val, mode)
 	else
 		val_res = tostring(val)
 	end
-	return val_res, val_type
+	return	val_res, val_type
 end
 
 -- make menu item for far.Menu(...)
 local KEY_WIDTH = 30
 local ITEM_FMT = ('%%-%s.%ss'):format(KEY_WIDTH, KEY_WIDTH)..'%s%-8s │%-25s'
 
-local function fnc_make_menu_items(val_key, sval, val_type)
+local function fnc_menu_item_make(val_key, sval, val_type)
 	local key_fmt = fnc_val_fmt(val_key, 'list')
 	local border = key_fmt:len() <= KEY_WIDTH and '│' or '…'
 	return {
@@ -128,75 +135,126 @@ local function fnc_is_LE_obj(obj)
 			)
 end
 
--- create sorted menu items with associated keys
-local function makeMenuItems(obj, obj_nav)
-	local items = { }
-	local item_props = { }
-	-- grab all 'real' keys
-	for key in pairs(obj)
-	do	local sval, vt = fnc_val_fmt(obj[key], 'list')
-		if not	omit[vt]
-		then	table.insert(items, fnc_make_menu_items(key, sval, vt))
-		end
-		item_props[key] = obj[key]
+local fnc_tbl_sort__simple = function(v1, v2)
+	return v1.text < v2.text
+end
+
+local fnc_tbl_sort__case = function(v1, v2)
+	if O.sort_ignore_case
+	then return v1.text:lower() < v2.text:lower()
+	else return v1.text < v2.text
 	end
-	--[[ Far uses some properties that in fact are functions in obj.properties
+end
+
+local fnc_tbl_sort__tables_first = function(v1, v2)
+	if	(v1.type == 'table')
+	~=	(v2.type == 'table')
+	then	return v1.type == 'table'
+	else    return v1.text < v2.text
+	end
+end
+
+local LEX_DATA_HIDE = true
+local function fnc_default_hidden_meta_props_set(tbl_hide_vals)
+	if not LEX_DATA_HIDE then return tbl_hide_vals end
+	if not	tbl_hide_vals
+	then	tbl_hide_vals = { }
+	end
+       	tbl_hide_vals["_LEX_VAR_MAP"] =		true
+       	tbl_hide_vals["_LEX_VARARG_VALS"] =	true
+	tbl_hide_vals["_LEX_FNC_KEY_WEIGHT"] =	true
+	tbl_hide_vals["_LEX_LEV_STK_FUNC"] = 	true
+	tbl_hide_vals["_LEX_LEV_STK_WHAT"] = 	true
+	tbl_hide_vals["_LEX_DISPLAY_NAME"] =	true
+	tbl_hide_vals["_LEX_DISPNAME_SEP"] =	true
+	return tbl_hide_vals
+end
+
+local fnc_menu_item_cust_sort = function(tbl_object, fnc_menu_item_key_weight, fnc_fallback_sort)
+	if fnc_menu_item_key_weight
+	then return function(v1, v2)
+			local	v1_weight = fnc_menu_item_key_weight(v1.key)
+			local	v2_weight = fnc_menu_item_key_weight(v2.key)
+			if	v1_weight
+			or	v2_weight
+			then	return  (v1_weight or 1000) <
+					(v2_weight or 1000)
+			else	fnc_fallback_sort(v1, v2)
+			end
+		end
+	else return fnc_fallback_sort
+	end
+end
+
+local fnc_tbl_sort__tables_first__case_insens = function(v1, v2)
+	if not	O.sort_tables_first
+	then	return fnc_tbl_sort__case(v1, v2)
+	elseif	v1.type == v2.type
+	then	return fnc_tbl_sort__case(v1, v2)
+	elseif	v1.type == "table"
+	then	return true
+	elseif 	v2.type == "table"
+	then 	return false
+	else	return fnc_tbl_sort__case(v1, v2)
+	end
+end
+
+local function fnc_menu_items_add(tbl_menu_source, tbl_menu_src_idx, tbl_hide_vals, tbl_menu_items, tbl_item_props)
+	for key in pairs(tbl_menu_src_idx or tbl_menu_source)
+	do	if not tbl_hide_vals[key]
+		then	local sval, vt = fnc_val_fmt(tbl_menu_source[key], 'list')
+			if not tbl_omit_type[vt]
+			then tbl_menu_items[#tbl_menu_items + 1] = fnc_menu_item_make(key, sval, vt)
+			end
+			tbl_item_props[key] = tbl_menu_source[key]
+		end
+	end
+	return tbl_menu_items, tbl_item_props
+end -- fnc_menu_items_add
+
+local function fnc_hidden_props_detect(tbl_menu_source)
+	if type(tbl_menu_source) ~= "table" then return end
+	local	has_hidden_props
+	--[[ Far uses some properties that in fact are functions in tbl_menu_source.properties
 	but they logically belong to the object itself. It's all Lua magic ;) ]]
---!	if getmetatable(obj) == "access denied" then ...
-	local success, props = pcall(function() return obj.properties end)
---!	if not success then far.Message(props,'Error in __index metamethod', nil, 'wl') end
+--	if getmetatable(tbl_menu_source) == "access denied" then ...
+--	if type(tbl_menu_source.properties) == 'table' and not rawget(tbl_menu_source, 'properties') then ..
+	local	props_ok, props = pcall(function() return tbl_menu_source.properties end)
+--	if not	props_ok then far.Message(props, 'Error in __index metamethod', nil, 'wl') end
 	if	type(props) == 'table'
-	and not rawget(obj, 'properties')
-	then
-		item_props.__HIDDEN_PROPS_HACK__ = true
-	--!	if type(obj.properties) == 'table' and not rawget(obj, 'properties') then
-		-- todo use list of APanel Area BM CmdLine Dlg Drv Editor Far Help Menu Mouse Object PPanel Panel Plugin Viewer
-		for key in pairs(obj.properties)
-		do	local sval, vt = fnc_val_fmt(obj[key], 'list')
-			if not	omit[vt]
-			then	table.insert(items, fnc_make_menu_items(key, sval, vt))
-			end
-			item_props[key] = obj[key]
-		end
+	and not rawget(tbl_menu_source, 'properties')
+	then	has_hidden_props = true
 	end
-	--[[!
-	table.sort(items, function(v1, v2) 
-		return v1.text < v2.text 
-	end) --]]
-	--[[!
-	table.sort(items, function(v1, v2)
-		if O.tables_first and (v1.type == 'table') ~= (v2.type == 'table')
-		then	return v1.type == 'table'
-		else    return v1.text < v2.text
-		end
-	end) ]]
--- [[
-	table.sort(items, function(v1, v2)
-		if
-			O.tables_first and v1.type ~= v2.type
-		then
-			return
-				v1.type == 'table' or
-				v2.type ~= 'table' and v1.type < v2.type
-		else
-			if	O.ignore_case
-			then	return v1.text:lower() < v2.text:lower()
-			else    return v1.text < v2.text
-			end
-		end
-	end) --]]
-	local	obj_nav_idx
+	return	has_hidden_props
+end -- fnc_hidden_props_detect
+
+-- create sorted menu items with associated keys
+local function makeMenuItems(tbl_menu_source, obj_nav, tbl_hide_vals)
+	local tbl_menu_items = { }
+	local tbl_item_props = { }
+	do	-- grab all 'real' keys
+		fnc_menu_items_add(tbl_menu_source, nil,			tbl_hide_vals, tbl_menu_items, tbl_item_props)
+	end
+	local	has_hidden_props = fnc_hidden_props_detect(tbl_menu_source)
+	if	has_hidden_props
+	then	fnc_menu_items_add(tbl_menu_source, tbl_menu_source.properties, tbl_hide_vals, tbl_menu_items, tbl_item_props)
+	end
+	if	O.sort_apply
+	then	local fnc_sort = fnc_menu_item_cust_sort(tbl_menu_source, rawget(tbl_menu_source, "_LEX_FNC_KEY_WEIGHT"), fnc_tbl_sort__tables_first__case_insens)
+		table.sort(tbl_menu_items, fnc_sort)
+	end
+	local	obj_nav_idx, obj_nav_val
 	if	obj_nav
-	then	local obj_nav_val = fnc_is_LE_obj(obj_nav) and obj_nav.obj_val or obj_nav
-		for key, val in pairs(items)
+	then	obj_nav_val = fnc_is_LE_obj(obj_nav) and obj_nav.obj_val or obj_nav
+		for key, val in pairs(tbl_menu_items)
 		do	if	val.key == obj_nav_val
 			then	obj_nav_idx = key
 				break
 			end
 		end
 	end
-	return items, item_props, obj_nav_idx
-end
+	return tbl_menu_items, tbl_item_props, obj_nav_idx, has_hidden_props
+end -- makeMenuItems
 
 local function getres(stat, ...) return stat, stat and { ... } or (...) and tostring(...) or '', select('#', ...) end
 
@@ -204,7 +262,7 @@ local function checknil(t, n) for ii = 1, n do if t[ii] == nil then return true 
 
 -- custom concat (applies 'tostring' to each item)
 local function concat(tbl_inp, delim, pos1, pos2)
---!	assert(delim and pos1 and pos2)
+--	assert(delim and pos1 and pos2)
 	local str = pos2 > 0 and tostring(tbl_inp[pos1]) or ''
 	for ii = pos1 + 1, pos2 do str = str..delim..tostring(tbl_inp[ii]) end
 	return str
@@ -212,7 +270,7 @@ end
 
 local function luaexp_prompt(Title, Prompt, Src, nArgs)
 	repeat
-		local	expr = far.InputBox(nil, Title:gsub('&','&&',1), Prompt, Title, Src, nil, nil, far.Flags.FIB_ENABLEEMPTY)
+		local	expr = far.InputBox(nil, Title:gsub('&', '&&', 1), Prompt, Title, Src, nil, nil, far.Flags.FIB_ENABLEEMPTY)
 		if not	expr then break end
 		local	f, err = loadstring('return '..expr)
 		if	f
@@ -225,7 +283,7 @@ local function luaexp_prompt(Title, Prompt, Src, nArgs)
 %d argument(s) required
 
   Expression entered: %q
-  Evaluated as %d arg(s): %s]]):format(nArgs,expr,n,concat(res,',',1,n))
+  Evaluated as %d arg(s): %s]]):format(nArgs, expr, n, concat(res, ',', 1, n))
 				end
 			else
 				err = res
@@ -250,8 +308,8 @@ local function editValue(obj, key, title, del)
 		local	prompt = ('%s is a %s, type new value as Lua code'):format(fnc_val_fmt(key), t:upper())
 		local	res = luaexp_prompt('EDIT: '..title, prompt, v, 1)
 		if	res
-		then	if	t == O.bin_string
-			then	res[1] = win.WideCharToMultiByte(win.Utf8ToUtf16(res[1]), win.GetACP())
+		then	if t == O.bin_string
+			then res[1] = win.WideCharToMultiByte(win.Utf8ToUtf16(res[1]), win.GetACP())
 			end
 			obj[key] = res[1]
 		end
@@ -268,13 +326,13 @@ local function getfParamsNames(f)
 	-- check _VERSION > "Lua 5.1"
 	if not jit then	return '...' end
 	local info = debug.getinfo(f)
-	local params = {}
+	local params = { }
 	for ii = 1, info.nparams or 1000
-	do	params[ii] = debug.getlocal(f, ii) or ("<%i>"):format(ii) -- C?
+	do params[ii] = debug.getlocal(f, ii) or ("<%i>"):format(ii) -- C?
 	end
 	if info.isvararg then params[#params + 1] = '...' end
-	local paramstr = #params > 0 and table.concat(params,', ') or '<none>'
-	return paramstr, params
+	local param_str = #params > 0 and table.concat(params, ', ') or '<none>'
+	return param_str, params
 end
 
 if not	_G.Xer0X
@@ -286,8 +344,11 @@ end
 local tbl_reopen_paths = Xer0X.tbl_explorer_reopen_chain
 
 -- show a menu whose items are associated with the members of given object
-local function process(obj, title, action, obj_root, tbl_open_path)
-	local tbl_ReOp_path, is_obj_root
+local function process(obj, path_title, action, obj_root, tbl_open_path, tbl_hide_vals)
+	if not	tbl_hide_vals
+	then	tbl_hide_vals = fnc_default_hidden_meta_props_set()
+	end
+	local	tbl_ReOp_path, is_obj_root
 	if	obj_root
 	then	tbl_ReOp_path = tbl_reopen_paths[obj_root]
 	else	tbl_ReOp_path = tbl_reopen_paths[obj]
@@ -319,18 +380,32 @@ local function process(obj, title, action, obj_root, tbl_open_path)
 		end
 	end
 	local tbl_cur_obj = is_obj_root and tbl_ReOp_path or tbl_ReOp_path[#tbl_ReOp_path]
-	title = type(title) == "string" and title or ''
-	if action and brkeys[action] then brkeys[action]({ obj }, 1, title); return end
-	local	mprops = { Id = uuid, Bottom = 'F1, F3, F4, Del, Ctrl+M', Flags = { FMENU_SHOWAMPERSAND = 1, FMENU_WRAPMODE = 1}}
-	local	obj_type = type(obj)
-	local	menu_item, menu_idx, obj_ret, obj_rem, obj_nav
+	if type(path_title) ~= "string"
+	then	path_title = ""
+	end
+	-- here you can insert your custom actions
+	if	action
+	and	brkeys[action]
+	then	brkeys[action]({ obj }, 1, path_title);
+		return
+	end
+	local mprops = {
+		Id = uuid,
+		Bottom = 'F1, F3, F4, Del, Ctrl+M',
+		Flags = {
+			FMENU_SHOWAMPERSAND =	1,
+			FMENU_WRAPMODE =	1
+		}
+	}
+	local menu_item, menu_idx, obj_ret, obj_rem, obj_nav
+	local obj_type = type(obj)
 	--[[ some member types, need specific behavior:
-	* tables are submenus
-	* functions can be called --]]
+		* tables are submenus
+		* functions can be called ]]
 	if	obj_type == 'function'
 	then
 		local args, n, expr = luaexp_prompt(
-			'CALL:'..title,
+			'CALL:'..path_title,
 			('arguments: %s (type as Lua code or leave empty)')
 				:format(getfParamsNames(obj))
 					)
@@ -340,23 +415,24 @@ local function process(obj, title, action, obj_root, tbl_open_path)
 		if not	stat
 		then	far.Message(
 				('%s\n  CALL: %s (%s)\n  argument(s): %d'..(n > 0 and ', evaluated as: %s' or ''))
-					:format(res, title, expr, n, concat(args, ',', 1, n)),
+					:format(res, path_title, expr, n, concat(args, ',', 1, n)),
 				'Error', nil, 'wl'
 			)
 			return
 		end
 		obj = res
-		title = ('%s(%s)'):format(title, expr)
+		path_title = ('%s(%s)'):format(path_title, expr)
 	-- other values are simply displayed in a message box
 	elseif	obj_type ~= 'table'
 	then	local value = fnc_val_fmt(obj, 'view')
-		far.Message(value, title:gsub('&', '&&', 1), nil, value:match('\n') and 'l' or '')
+		far.Message(value, path_title:gsub('&', '&&', 1), nil, value:match('\n') and 'l' or '')
 		return
 	end
 	-- show this menu level again after each return from a submenu/function call ...
+	local obj_title_separ = rawget(obj, "_LEX_DISPNAME_SEP") or "."
 	repeat
-		local menu_items, item_props, obj_nav_idx = makeMenuItems(obj, tbl_open_path and tbl_open_path[1])
-		mprops.Title = title..' ('..#menu_items..')'..(omit['function'] and '*' or '')
+		local menu_items, item_props, obj_nav_idx, obj_props_hidden = makeMenuItems(obj, --[[! can be NIL:]] tbl_open_path[1], tbl_hide_vals)
+		mprops.Title = path_title..' ('..#menu_items..')'..(tbl_omit_type['function'] and '*' or '')
 		mprops.SelectIndex = obj_nav_idx or tbl_cur_obj.child_menu_item_idx
 		tbl_cur_obj.obj_props = item_props
 		if	tbl_open_path
@@ -364,8 +440,14 @@ local function process(obj, title, action, obj_root, tbl_open_path)
 		then	menu_item= tbl_open_path[1].menu_item or obj_nav_idx and menu_items[obj_nav_idx]
 			menu_idx = tbl_open_path[1].menu_idx  or obj_nav_idx
 			obj_nav = table.remove(tbl_open_path, 1)
+			if not	menu_item
+			then	--[[ the object changed!
+				it means that the old name dissapeared ]]
+				far.Message(string.format("The key [%s] was removed", obj_nav), path_title, nil, "wl")
+				obj_ret = "back"
+			end
 		else
-		--!	mprops.SelectIndex = mprops.SelectIndex or tbl_cur_obj.child_menu_item_idx
+		--	mprops.SelectIndex = mprops.SelectIndex or tbl_cur_obj.child_menu_item_idx
 			menu_item, menu_idx = far.Menu(mprops, menu_items, brkeys)
 		end
 		if	menu_idx
@@ -381,10 +463,12 @@ local function process(obj, title, action, obj_root, tbl_open_path)
 				obj_ret = "back"
 			else
 				local obj_key_child = menu_item.key or menu_idx > 0 and menu_items[menu_idx].key
-				local title_child = (title ~= '' and title..'.' or title)..tostring(obj_key_child)
+				local obj_child = obj[obj_key_child]
+				local title_child = type(obj_child) == "table" and rawget(obj_child, "_LEX_DISPLAY_NAME") or tostring(obj_key_child)
+				if title_child == "" then title_child = "<EMPTY-STR>" end
+				local path_title_child = (path_title ~= '' and path_title..obj_title_separ or "")..title_child
 				if	menu_item.key ~= nil
-				then	local obj_child = obj[obj_key_child]
-					if type(obj_child) ~= "nil"
+				then	if type(obj_child) ~= "nil"
 					then	table.insert(tbl_ReOp_path, {
 							obj_val  = obj_child,
 							obj_key  = obj_key_child,
@@ -393,27 +477,37 @@ local function process(obj, title, action, obj_root, tbl_open_path)
 							child_menu_item_txt = obj_nav and obj_nav.child_menu_item_txt,
 							child_menu_item_idx = obj_nav and obj_nav.child_menu_item_idx,
 						})
-						obj_ret = process(obj_child, title_child, nil, obj_root, tbl_open_path)
+						obj_ret = process(obj_child, path_title_child, nil, obj_root, tbl_open_path, tbl_hide_vals)
 						if	obj_ret ~= "exit"
 						then	obj_rem = table.remove(tbl_ReOp_path)
-							if	obj_ret == "back"
-							then	--!!! NO PROPAGATION:
-								obj_ret = nil
-							end
 						end
 					end
 				elseif	menu_item.action
-				then	if menu_item.action(obj, obj_key_child, title_child, item_props) == "break" then return end
+				then	if "break" == menu_item.action(
+						obj, obj_key_child, path_title_child, item_props, obj_props_hidden, tbl_hide_vals, tbl_ReOp_path
+							)
+					then return
+					end
 				end
 			end
 		end
+		if not	menu_item
+		and not obj_ret
+		then	obj_ret = "exit"
+		end
 	-- until the user is bored and goes back ;)
-	until not menu_item or obj_ret == "exit" or obj_ret == "back"
-	return obj_ret or not menu_item and "exit"
+	until	obj_ret == "exit"
+	or	obj_ret == "back"
+	if	obj_ret == "back"
+	then	--[[ no back-propagation allowed!
+		so that the one back will do only one backstep:]]
+		obj_ret = nil
+	end
+	return	obj_ret 
 end
 
 local function fnc_upvals_collect(fnc_inp, num_vals)
-	local	tbl_upvals = {}
+	local	tbl_upvals = { }
 	local	ii_key, ii_val
 	-- n: debug.getinfo(f).nups
 	for	ii = 1, num_vals or 1000
@@ -436,9 +530,68 @@ local function syncUpvalues(f, t, n)
 	end
 end
 
+local function fnc_func_info(obj, key, tbl_curr_path)
+-- ###
+if fnc_hidden_props_detect(obj) then return obj end
+local	fnc_test = obj[key]
+if	obj._LEX_LEV_STK_FUNC
+then	obj = obj[string.format("INFUNC:%s/%s", obj._LEX_LEV_STK_WHAT, obj._LEX_LEV_STK_FUNC)]
+	fnc_test = obj.func
+end
+local is_func = type(fnc_test) == 'function'
+local is_info =
+	not props_hidden
+	and obj.linedefined
+	and obj.source
+	and obj.func
+if not (is_func
+or 	is_info)
+then	for	ii_lev = #tbl_curr_path, 1, -1
+	do	local	tbl_stk_inf = tbl_curr_path[ii_lev]
+		local	obj_val = tbl_stk_inf.obj_val
+		if	obj_val
+		then
+			local	what_fnc = obj_val._LEX_LEV_STK_WHAT
+			local	name_fnc = obj_val._LEX_LEV_STK_FUNC
+			if	name_fnc
+			then	local	obj_props = tbl_stk_inf.obj_props
+				repeat
+					local	obj_inf_fnc = obj_props[string.format("INFUNC:%s/%s", what_fnc, name_fnc)]
+					if	obj_inf_fnc.linedefined
+					then	obj = obj_inf_fnc
+						is_info = true
+						break
+					else	local is_caller_found
+						for ii_key, ii_val in pairs(obj_props)
+						do	if string.match(ii_key, "CALLER:")
+							then	obj_props= obj_props[ii_key]
+								name_fnc = obj_props._LEX_LEV_STK_FUNC
+								what_fnc = obj_props._LEX_LEV_STK_WHAT
+								is_caller_found = true
+								break
+							end
+						end
+						if not is_caller_found then break end
+					end
+				until false
+				if is_info then break end
+			end
+		end
+	end
+end
+local fnc_targ =
+	is_func and fnc_test or
+	is_info and obj.func
+local dbg_info =
+	is_info and obj or
+	is_func and debug.getinfo(fnc_test, 'Slun')
+return obj, is_func or is_info, fnc_targ, dbg_info
+-- @@@
+end -- fnc_func_info
+
 brkeys = {
 	{ BreakKey = 'F9', name = 'registry',
-		action = function(info) process(debug.getregistry(), 'debug.getregistry:') end;},
+		action = function(info) process(debug.getregistry(), 'debug.getregistry:') end; },
 	{ BreakKey = 'Ctrl+Insert',
 		action = function(obj, key)
 			-- todo: escape slashes etc
@@ -446,27 +599,26 @@ brkeys = {
 			far.CopyToClipboard(copy_val)
 		end},
 	{ BreakKey = 'CtrlShift+Insert',
-		action = function(obj, key) 
+		action = function(obj, key)
 			local copy_val, copy_type = fnc_val_fmt(key, 'list')
-			far.CopyToClipboard(copy_val) 
+			far.CopyToClipboard(copy_val)
 		end},
 	{ BreakKey = 'CtrlAlt+Insert',
 		action = function(obj, key, kpath)
 			local copy_val, copy_type = fnc_val_fmt(key, 'list')
-			far.CopyToClipboard(kpath:gsub('^_G%.','')..copy_val) 
+			far.CopyToClipboard(kpath:gsub('^_G%.', '')..copy_val)
 		end},
 	{ BreakKey = 'Ctrl+Up',	name = 'upvalues',
-		action = function(obj, key, kpath)
+		action = function(obj, key, kpath, props, props_hidden, tbl_vals_hidden, tbl_curr_path)
 -- ###
-local	fnc1 = obj[key]
-if	type(fnc1) == 'function'
-then	local	dbg_info = debug.getinfo(fnc1)
-	if	dbg_info.what ~= 'C'
+local tbl_obj, is_func, fnc_targ, dbg_info = fnc_func_info(obj, key, tbl_curr_path)
+if	is_func
+then	if	dbg_info.what ~= 'C'
 	or	true -- todo
-	then	local	tbl_upvals, num_vals = fnc_upvals_collect(fnc1)
+	then	local	tbl_upvals, num_vals = fnc_upvals_collect(fnc_targ)
 		if	num_vals > 0
 		then	process(tbl_upvals, 'upvalues: '..kpath)
-			syncUpvalues(fnc1, tbl_upvals, num_vals)
+			syncUpvalues(fnc_targ, tbl_upvals, num_vals)
 		else	far.Message(
 				"No upvalues",
 				dbg_info.name
@@ -499,75 +651,80 @@ then
 	end --]]
 end
 -- @@@
-		end;},
+		end; },
 	{ BreakKey = 'Ctrl+Right', name = 'params',
-		action = function(obj, key, kpath)
+		action = function(obj, key, kpath, props, props_hidden, tbl_vals_hidden, tbl_curr_path)
 -- ###
-local f = obj[key]
-if type(f) == 'function'
+local tbl_obj, is_func, fnc_targ, dbg_info = fnc_func_info(obj, key, tbl_curr_path)
+if	is_func
 then
-	local	args, t = getfParamsNames(f)
-	if	args:len() > 0
-	then	process(t, 'params (f): '..kpath)
-		local name = debug.getinfo(f).name
-	--	far.Message(('%s (%s)'):format(name or kpath,args), 'params')
+	local	arg_str, obj_args = getfParamsNames(fnc_targ)
+	if	arg_str:len() > 0
+	then	process(obj_args, 'params (f): '..kpath)
+	--[[	local name = debug.getinfo(f).name
+		far.Message(('%s (%s)'):format(name or kpath, arg_str), 'params') --]]
 	end
 end
 -- @@@
-		end;},
+		end; },
 	{ BreakKey = 'Alt+F4', name = 'edit',
-		action = function(obj, key, kpath, props)
+		action = function(obj, key, kpath, props, props_hidden, tbl_vals_hidden, tbl_curr_path)
 -- ###
-local	fnc_test = obj[key]
-local	test_is_func = type(fnc_test) == 'function'
-local	test_is_info =
-	not	props.__HIDDEN_PROPS_HACK__
-	and	obj.linedefined
-	and	obj.source
-	and type(obj.func) == 'function'
-if 	test_is_func
-or	test_is_info
+local tbl_obj, is_func, fnc_targ, dbg_info = fnc_func_info(obj, key, tbl_curr_path)
+if 	is_func
 then
-	local	fnc_targ = test_is_func and fnc_test or obj.func
-	local	dbg_info = test_is_info and obj or debug.getinfo(fnc_targ, 'Slun')
-	--[[ @Xer0X:do not gives current line:
-	debug.getinfo(fnc_targ, 'Slun') --]]
-	local	filename =
+	local filename =
 		dbg_info.source:match("^@(.+)$")
-	local	fileline =
-		dbg_info.currentline and
-		dbg_info.currentline > 0 and
+	local fileline =
+		dbg_info.currentline	and
+		dbg_info.currentline>=0 and
 		dbg_info.currentline
-		or
-		dbg_info.linedefined and
-		dbg_info.linedefined > 0 and
+			or
+		dbg_info.linedefined	and
+		dbg_info.linedefined>=0 and
 		dbg_info.linedefined
-	if	filename
-	then	editor.Editor(filename, nil, nil, nil, nil, nil, nil, fileline)
+	if filename
+	then editor.Editor(filename, nil, nil, nil, nil, nil, nil, fileline)
 	end
 end
 -- @@@
-		end;},
+		end; },
 	{ BreakKey = 'F3', name = 'info',
-		action = function(obj, key, kpath)
+		action = function(obj, key, kpath, item_props, obj_props_hidden, tbl_hide_vals)
 -- ###
-local	f = obj[key]
-if	type(f) == 'function'
-then	process(debug.getinfo(f), 'debug.getinfo: '..kpath)
-elseif	type(f) == 'thread'
-then	far.Message(debug.traceback(f, "level 0", 0):gsub('\n\t','\n   '), 'debug.traceback: '..kpath, nil, "l")
---	far.Show('debug.traceback: '..kpath..debug.traceback(f, ", level 0", 0))
+local	func = obj[key]
+local	ftype = type(func)
+if	ftype == 'function'
+then	local	dbg_info = debug.getinfo(func)
+	if	dbg_info.namewhat == ""
+	then	dbg_info.namewhat = nil
+	end
+	if	dbg_info.linedefined == -1
+	then	dbg_info.linedefined = nil
+	end
+	if	dbg_info.currentline == -1
+	then	dbg_info.currentline = nil
+	end
+	if	dbg_info.lastlinedefined == -1
+	then	dbg_info.lastlinedefined = nil
+	end
+	dbg_info._LEX_FNC_KEY_WEIGHT = Xer0X.fnc_menu_dbg_inf_key_weight
+	process(dbg_info, 'debug.getinfo: '..kpath, nil, nil, nil, tbl_hide_vals)
+elseif	ftype == 'thread'
+then	far.Message(debug.traceback(func, "level 0", 0):gsub('\n\t','\n   '), 'debug.traceback: '..kpath, nil, "l")
 end
 -- @@@
 		end; },
 	{ BreakKey = 'F4',
 		action = function(obj, key, kpath) return key ~= nil and editValue(obj, key, kpath) end },
 	{ BreakKey = 'Ctrl+F',
-		action = function()	omit['function']= not omit['function']	end },
+		action = function() tbl_omit_type['function'] = not tbl_omit_type['function'] end },
 	{ BreakKey = 'Ctrl+T',
-		action = function()	O.tables_first	= not O.tables_first	end },
+		action = function() O.sort_tables_first	= not O.sort_tables_first	end },
 	{ BreakKey = 'Ctrl+I',
-		action = function()	O.ignore_case	= not O.ignore_case	end },
+		action = function() O.sort_ignore_case	= not O.sort_ignore_case	end },
+	{ BreakKey = 'Ctrl+S',
+		action = function() O.sort_apply	= not O.sort_apply		end },
 	{ BreakKey = 'Ctrl+M', name = 'mt',
 		action = function(obj, key, kpath)
 -- ###
@@ -586,11 +743,18 @@ for	ii = 1, #addbrkeys
 do	local bk = addbrkeys[ii]
 	local BreakKey = bk.BreakKey
 	local pos
-	for jj = 1, #brkeys do if brkeys[jj].BreakKey == BreakKey then pos = jj; break end end
+	for jj = 1, #brkeys
+	do	if brkeys[jj].BreakKey == BreakKey
+		then	pos = jj
+			break
+		end
+	end
 	if	pos
 	then	brkeys[pos] = bk
 	else	table.insert(brkeys, bk)
-		if bk.name then	brkeys[bk.name] = bk.action end
+		if bk.name
+		then brkeys[bk.name] = bk.action
+		end
 	end
 end
 return "break"
@@ -599,33 +763,41 @@ return "break"
 	{ BreakKey = 'BS', name = "goBack", action = function() return "goBack" end }
 }
 
---[[ if LuaJIT is used,
+--[[ if LuaJiT is used,
 maybe we can show some more function info]]
 if	jit
-then    local funcinfo = require('jit.util').funcinfo
-	table.insert(brkeys, {
-		BreakKey = 'Shift+F3',
-		action = function(obj, key, kpath)
-			if	key ~= nil
-			and	type(obj[key]) == 'function'
-			then
-				local name_x = debug.getinfo(obj[key], "n").name
-				far.Message(name_x)
-				process(funcinfo(obj[key]), 'jit.util.funcinfo: '..kpath)
-			end
-		end,
-		name = 'jitinfo'
-	})
+then
+	local fnc_jit_inf = require('jit.util').funcinfo
+	table.insert(
+		brkeys,
+		{
+			name = 'jitinfo',
+			BreakKey = 'Shift+F3',
+			action = function(obj, key, kpath, props, props_hidden, tbl_vals_hidden, tbl_curr_path)
+				local tbl_obj, is_func, fnc_targ, dbg_info = fnc_func_info(obj, key, tbl_curr_path)
+				if      is_func
+				then
+				--[[	local name_x = debug.getinfo(obj[key], "n").name
+					far.Message(name_x) --]]
+					process(fnc_jit_inf(fnc_targ), 'jit.util.funcinfo: '..kpath)
+				end
+			end,
+		}
+	)
 end
 
 for ii = 1, #brkeys
-do	local bk = brkeys[ii];
+do	local bk = brkeys[ii]
 	if bk.name then	brkeys[bk.name] = bk.action end
 end
 
-nfo.execute = function() process(_G, '') --[[ require("le")(_G,'_G') ]] end
+nfo.execute = function()
+	process(_G, '')
+--	require("le")(_G, '_G')
+end
 
-if	Macro
+if
+	Macro
 then
 -- ###
 Macro { description = "Lua Explorer (Advanced)";
@@ -633,14 +805,18 @@ Macro { description = "Lua Explorer (Advanced)";
 	action = nfo.execute
 }
 -- @@@
-elseif	_filename
-then	process(_G, '')
-else	return process
+elseif
+	_filename
+then
+--	process(_G, '')
+	_G.le = process
+	_G.LE = process
+else
+	return	process, fnc_default_hidden_meta_props_set
 -- if ... == "le" then
 end
 
 --[[ it's possible to call via lua:, e.g. from user menu:
 lua:dofile(win.GetEnv("FARPROFILE")..[[\Macros\scripts\le.lua] ])(_G,'_G')
 lua:require("le")(_G,'_G')
---]]
 -- @@@@@
