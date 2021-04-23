@@ -2,9 +2,14 @@
 if true then return end --]]
 
 --[[
+Original version of @JD Lua Explorer "Advanced":
 https://gist.github.com/johnd0e/5110ddfb3291928a7f484cd38f23ff87
 https://forum.farmanager.com/viewtopic.php?t=7988
 https://forum.farmanager.com/viewtopic.php?t=7521
+
+Modified and even more "advanced" Lua Explorer @Xer0X:
+https://github.com/dr-dba/far-lua-explorer/
+https://forum.farmanager.com/viewtopic.php?f=15&t=12374
 ]]
 
 local Info = Info or package.loaded.regscript or function(...) return ... end -- luacheck: ignore 113/Info
@@ -800,7 +805,7 @@ if
 	Macro
 then
 -- ###
-Macro { description = "Lua Explorer (Advanced)";
+Macro { description = "Lua Explorer @Xer0X";
 	area = "Common"; key = "RCtrlShiftF12";
 	action = nfo.execute
 }
