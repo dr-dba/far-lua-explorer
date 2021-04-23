@@ -1,11 +1,15 @@
-Originally from @JD:
+Originally from @JD Lua Explorer „Advanced“
 <br />
 https://gist.github.com/johnd0e/5110ddfb3291928a7f484cd38f23ff87/
 <br />
-https://forum.farmanager.com/viewtopic.php?t=7988
+Discussion page of @JD version:
 <br />
-.. with my and @Xer0X's changes
-
+https://forum.farmanager.com/viewtopic.php?f=60&t=7988
+<br />
+"Lua Explorer @Xer0X" version and discussion page:
+https://github.com/dr-dba/far-lua-explorer/
+https://forum.farmanager.com/viewtopic.php?f=15&t=12374
+<br />
 changes are:
 * Retentive, i.e. reopened on the same object (=table) subelement
 * Ability to navigate by the given path, <br />
@@ -17,4 +21,5 @@ lua: `LE(_G, nil, nil, nil, {"far", "Colors"})`<br />
 .. will open the `{_G=>far=>Colors}` table<br />
 * Not like in original code exiting on Escape, <br />
 this modification exits on Escape, goes back on BackSpace<br />
-
+* Custom sorts can be defined
+* Certain fields (properties) can be hidden
