@@ -10,11 +10,16 @@ https://forum.farmanager.com/viewtopic.php?t=7521
 Modified and even more "advanced" Lua Explorer @Xer0X:
 https://github.com/dr-dba/far-lua-explorer/
 https://forum.farmanager.com/viewtopic.php?f=15&t=12374
+
+Mutual dependencies for "Lua Explorer @Xer0X":
+https://github.com/dr-dba/far-lua-internals
+https://github.com/dr-dba/far-lua-diagnostics
+https://github.com/dr-dba/far-lua-general-utils
 ]]
 
 local Info = Info or package.loaded.regscript or function(...) return ... end -- luacheck: ignore 113/Info
 local nfo = Info { _filename or ...,
-	name		= "Lua Explorer Advanced";
+	name		= "Lua Explorer @Xer0X";
 	description	= "Explore Lua environment in your Far manager (+@Xer0X mod.)";
 	id		= "C61B1E8D-71D4-445C-85A6-35EA1D5B6EF3";
 	version		= "2.4";
