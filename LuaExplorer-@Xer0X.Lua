@@ -19,11 +19,11 @@ https://github.com/dr-dba/far-lua-general-utils
 
 local Info = Info or package.loaded.regscript or function(...) return ... end -- luacheck: ignore 113/Info
 local nfo = Info { _filename or ...,
-	name		= "Lua Explorer @Xer0X";
+	name		= "Lua Explorer Advanced";
 	description	= "Explore Lua environment in your Far manager (+@Xer0X mod.)";
 	id		= "C61B1E8D-71D4-445C-85A6-35EA1D5B6EF3";
 	version		= "2.4";
-	version_mod	= "1.4.4";
+	version_mod	= "1.4.5";
 	author		= "jd";
 	author_mod	= "Xer0X";
 	url		= "http://forum.farmanager.com/viewtopic.php?f=60&t=7988";
@@ -829,4 +829,5 @@ end
 --[[ it's possible to call via lua:, e.g. from user menu:
 lua:dofile(win.GetEnv("FARPROFILE")..[[\Macros\scripts\le.lua] ])(_G,'_G')
 lua:require("le")(_G,'_G')
+--]]
 -- @@@@@
