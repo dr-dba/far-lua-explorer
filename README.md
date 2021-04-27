@@ -7,7 +7,9 @@ Discussion page of @JD version:
 https://forum.farmanager.com/viewtopic.php?f=60&t=7988
 <br />
 "Lua Explorer @Xer0X" version and discussion page:
+<br />
 https://github.com/dr-dba/far-lua-explorer/
+<br />
 https://forum.farmanager.com/viewtopic.php?f=15&t=12374
 <br />
 changes are:
