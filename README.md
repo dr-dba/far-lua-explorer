@@ -16,11 +16,11 @@ changes are:
 * Retentive, i.e. reopened on the same object (=table) subelement
 * Ability to navigate by the given path, <br />
 for example this:<br />
-lua`:LE(_G, nil, nil, nil, {"Area"})`<br />
-.. will open the `"_G=>Area`" table<br />
+lua`:LE(_G, nil, nil, nil, { "Area" })`<br />
+.. will open the `"[ _G ==>> Area ]" table<br />
 and this:<br />
-lua: `LE(_G, nil, nil, nil, {"far", "Colors"})`<br />
-.. will open the `{_G=>far=>Colors}` table<br />
+lua: `LE(_G, nil, nil, nil, { "far", "Colors" })`<br />
+.. will open the `[ _G ==>> far ==>> Colors ]` table<br />
 * Not like in original code exiting on Escape, <br />
 this modification exits on Escape, goes back on BackSpace<br />
 * Custom sorts can be defined
