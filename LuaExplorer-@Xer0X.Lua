@@ -170,13 +170,14 @@ local function fnc_default_hidden_meta_props_set(tbl_hide_vals)
 	if not	tbl_hide_vals
 	then	tbl_hide_vals = { }
 	end
-       	tbl_hide_vals["_LEX_VAR_MAP"] =		true
+       	tbl_hide_vals["_LEX_VAR_MAP"]	=	true
        	tbl_hide_vals["_LEX_VARARG_VALS"] =	true
 	tbl_hide_vals["_LEX_FNC_KEY_WEIGHT"] =	true
 	tbl_hide_vals["_LEX_LEV_STK_FUNC"] = 	true
 	tbl_hide_vals["_LEX_LEV_STK_WHAT"] = 	true
 	tbl_hide_vals["_LEX_DISPLAY_NAME"] =	true
 	tbl_hide_vals["_LEX_DISPNAME_SEP"] =	true
+	tbl_hide_vals["_LEX_HIDDEN_PROPS"] =	true
 	return tbl_hide_vals
 end
 
@@ -355,6 +356,11 @@ local tbl_reopen_paths = Xer0X.tbl_explorer_reopen_chain
 
 -- show a menu whose items are associated with the members of given object
 local function process(obj, path_title, action, obj_root, tbl_open_path, tbl_hide_vals)
+	local	obj_type = type(obj)
+	if	obj_type == "nil"
+	then	far.Message("Not provided an object to explore", "LuaExplorer eXtended", nil, 'wl') 
+		return
+	end
 	if not	tbl_hide_vals
 	then	tbl_hide_vals = fnc_default_hidden_meta_props_set()
 	end
@@ -408,7 +414,6 @@ local function process(obj, path_title, action, obj_root, tbl_open_path, tbl_hid
 		}
 	}
 	local menu_item, menu_idx, obj_ret, obj_rem, obj_nav
-	local obj_type = type(obj)
 	--[[ some member types, need specific behavior:
 		* tables are submenus
 		* functions can be called ]]
@@ -472,10 +477,16 @@ local function process(obj, path_title, action, obj_root, tbl_open_path, tbl_hid
 			then
 				obj_ret = "back"
 			else
-				local obj_key_child = menu_item.key or menu_idx > 0 and menu_items[menu_idx].key
-				local obj_child = obj[obj_key_child]
-				local title_child = type(obj_child) == "table" and rawget(obj_child, "_LEX_DISPLAY_NAME") or tostring(obj_key_child)
-				if title_child == "" then title_child = "<EMPTY-STR>" end
+				local	obj_key_child = menu_item.key or menu_idx > 0 and menu_items[menu_idx].key
+				local	obj_child = obj[obj_key_child]
+				local	title_child = type(obj_child) == "table"
+						and not rawget(obj_child, "_LEX_HIDDEN_PROPS")
+						and	rawget(obj_child, "_LEX_DISPLAY_NAME")
+					or tostring(obj_key_child)
+				if type(title_child) == "boolean"
+				then
+				end
+				if	title_child == "" then title_child = "<EMPTY-STR>" end
 				local path_title_child = (path_title ~= '' and path_title..obj_title_separ or "")..title_child
 				if	menu_item.key ~= nil
 				then	if type(obj_child) ~= "nil"
@@ -811,7 +822,8 @@ if
 then
 -- ###
 Macro { description = "Lua Explorer @Xer0X";
-	area = "Common"; key = "RCtrlShiftF12";
+	area = "Common"; 
+	key = "RCtrlShiftF12";
 	action = nfo.execute
 }
 -- @@@
