@@ -19,7 +19,7 @@ https://github.com/dr-dba/far-lua-general-utils
 
 local Info = Info or package.loaded.regscript or function(...) return ... end -- luacheck: ignore 113/Info
 local nfo = Info { _filename or ...,
-	name		= "Lua Explorer Advanced";
+	name		= "Lua Explorer eXtended";
 	description	= "Explore Lua environment in your Far manager (+@Xer0X mod.)";
 	id		= "C61B1E8D-71D4-445C-85A6-35EA1D5B6EF3";
 	version		= "2.4";
@@ -358,7 +358,7 @@ local tbl_reopen_paths = Xer0X.tbl_explorer_reopen_chain
 local function process(obj, path_title, action, obj_root, tbl_open_path, tbl_hide_vals)
 	local	obj_type = type(obj)
 	if	obj_type == "nil"
-	then	far.Message("Not provided an object to explore", "LuaExplorer eXtended", nil, 'wl') 
+	then	far.Message("Not provided an object to explore", "LuaExplorer eXtended", nil, 'wl')
 		return
 	end
 	if not	tbl_hide_vals
@@ -821,8 +821,8 @@ if
 	Macro
 then
 -- ###
-Macro { description = "Lua Explorer @Xer0X";
-	area = "Common"; 
+Macro { description = "Lua Explorer eXtended";
+	area = "Common";
 	key = "RCtrlShiftF12";
 	action = nfo.execute
 }
@@ -842,4 +842,5 @@ end
 lua:dofile(win.GetEnv("FARPROFILE")..[[\Macros\scripts\le.lua] ])(_G,'_G')
 lua:require("le")(_G,'_G')
 --]]
+
 -- @@@@@
