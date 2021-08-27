@@ -23,7 +23,7 @@ local nfo = Info { _filename or ...,
 	description	= "Explore Lua environment in your Far manager (+@Xer0X mod.)";
 	id		= "C61B1E8D-71D4-445C-85A6-35EA1D5B6EF3";
 	version		= "2.4";
-	version_mod	= "1.4.5";
+	version_mod	= "1.5.0";
 	author		= "jd";
 	author_mod	= "Xer0X";
 	url		= "http://forum.farmanager.com/viewtopic.php?f=60&t=7988";
@@ -87,10 +87,9 @@ local brkeys = { }
 
 -- format values for menu items and message boxes
 local function fnc_val_fmt(val, mode)
-	local	val_type = type(val)
 	local	val_res
-	if
-		val_type == 'string'
+	local	val_type = type(val)
+	if	val_type == 'string'
 	then
 		val_res = val
 		if not	val_res:utf8valid()
@@ -113,6 +112,12 @@ local function fnc_val_fmt(val, mode)
 		val_type == "number"
 	then
 		val_res = (mode == "edit" and "0x%x --[[ %s ]]" or "0x%08x (%s)"):format(val, val)
+	elseif
+		val_type == "table"
+	then
+		local disp = rawget(val, "_LEX_DISPLAY_STR")
+		val_res = disp and (type(disp) == "function" and disp(val) or tostring(disp)) 
+			or tostring(val)
 	else
 		val_res = tostring(val)
 	end
@@ -178,6 +183,7 @@ local function fnc_default_hidden_meta_props_set(tbl_hide_vals)
 	tbl_hide_vals["_LEX_DISPLAY_NAME"] =	true
 	tbl_hide_vals["_LEX_DISPNAME_SEP"] =	true
 	tbl_hide_vals["_LEX_HIDDEN_PROPS"] =	true
+	tbl_hide_vals["_LEX_DISPLAY_STR"] =	true
 	return tbl_hide_vals
 end
 
