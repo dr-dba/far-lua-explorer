@@ -1,5 +1,5 @@
 --[[
-if true then return end --]]
+do return end --]]
 
 --[[
 Original version of @JD Lua Explorer "Advanced":
@@ -23,7 +23,7 @@ local nfo = Info { _filename or ...,
 	description	= "Explore Lua environment in your Far manager (+@Xer0X mod.)";
 	id		= "C61B1E8D-71D4-445C-85A6-35EA1D5B6EF3";
 	version		= "2.4";
-	version_mod	= "1.5.0";
+	version_mod	= "1.4.5";
 	author		= "jd";
 	author_mod	= "Xer0X";
 	url		= "http://forum.farmanager.com/viewtopic.php?f=60&t=7988";
@@ -472,6 +472,7 @@ local function process(obj, path_title, action, obj_root, tbl_open_path, tbl_hid
 			menu_item, menu_idx = far.Menu(mprops, menu_items, brkeys)
 		end
 		if	menu_idx
+		and	menu_item -- FAR exit
 		then	mprops.SelectIndex = menu_idx
 			tbl_cur_obj.child_menu_item_idx = menu_idx
 			tbl_cur_obj.child_menu_item_txt = menu_item.text
@@ -490,7 +491,7 @@ local function process(obj, path_title, action, obj_root, tbl_open_path, tbl_hid
 						and	rawget(obj_child, "_LEX_DISPLAY_NAME")
 					or tostring(obj_key_child)
 				if type(title_child) == "boolean"
-				then
+				then	
 				end
 				if	title_child == "" then title_child = "<EMPTY-STR>" end
 				local path_title_child = (path_title ~= '' and path_title..obj_title_separ or "")..title_child
