@@ -23,7 +23,7 @@ local nfo = Info { _filename or ...,
 	description	= "Explore Lua environment in your Far manager (+@Xer0X mod.)";
 	id		= "C61B1E8D-71D4-445C-85A6-35EA1D5B6EF3";
 	version		= "2.4";
-	version_mod	= "1.4.5";
+	version_mod	= "1.4.6";
 	author		= "jd";
 	author_mod	= "Xer0X";
 	url		= "http://forum.farmanager.com/viewtopic.php?f=60&t=7988";
@@ -64,7 +64,7 @@ Ctrl+F          Show/hide functions
 Ctrl+T          Toggle sort by type
 Ctrl+I          Toggle ignore case
 
-for functions:
+For functions:
 
 Enter           Call function (params prompted)
 F3              Show some function info
@@ -94,7 +94,7 @@ local function fnc_val_fmt(val, mode)
 		val_res = val
 		if not	val_res:utf8valid()
 		then
-			local utf_8, err = win.Utf16ToUtf8(win.MultiByteToWideChar(val, win.GetACP()));
+			local utf_8, err = win.Utf16ToUtf8(win.MultiByteToWideChar(val, win.GetACP()))
 			val_res = utf_8 or err
 			val_type = O.bin_string
 		end
@@ -141,12 +141,12 @@ end
 
 local function fnc_is_LE_obj(obj)
 	return 2 < ( 0
-		+ ("nil" ~= type(obj.obj)	and 1 or 0)
-		+ ("nil" ~= type(obj.menu_idx ) and 1 or 0)
-		+ ("nil" ~= type(obj.menu_item) and 1 or 0)
-		+ ("nil" ~= type(obj.menu_item) and 1 or 0)
-		+ ("nil" ~= type(obj.child_menu_item_txt) and 1 or 0)
-		+ ("nil" ~= type(obj.child_menu_item_idx) and 1 or 0)
+		+ ("nil" ~= type(obj.obj	)		and 1 or 0)
+		+ ("nil" ~= type(obj.menu_idx	)		and 1 or 0)
+		+ ("nil" ~= type(obj.menu_item	)		and 1 or 0)
+		+ ("nil" ~= type(obj.menu_item	)		and 1 or 0)
+		+ ("nil" ~= type(obj.child_menu_item_txt)	and 1 or 0)
+		+ ("nil" ~= type(obj.child_menu_item_idx)	and 1 or 0)
 			)
 end
 
@@ -171,7 +171,9 @@ end
 
 local LEX_DATA_HIDE = true
 local function fnc_default_hidden_meta_props_set(tbl_hide_vals)
-	if not LEX_DATA_HIDE then return tbl_hide_vals end
+	if not LEX_DATA_HIDE
+	then return tbl_hide_vals 
+	end
 	if not	tbl_hide_vals
 	then	tbl_hide_vals = { }
 	end
@@ -273,16 +275,16 @@ local function makeMenuItems(tbl_menu_source, obj_nav, tbl_hide_vals)
 	return tbl_menu_items, tbl_item_props, obj_nav_idx, has_hidden_props
 end -- makeMenuItems
 
-local function getres(stat, ...) return stat, stat and { ... } or (...) and tostring(...) or '', select('#', ...) end
+local function fnc_res_get(stat, ...) return stat, stat and { ... } or (...) and tostring(...) or '', select('#', ...) end
 
-local function checknil(t, n) for ii = 1, n do if t[ii] == nil then return true end end end
+local function fnc_nil_chk(tbl_inp, size_of_tbl) for ii = 1, size_of_tbl do if tbl_inp[ii] == nil then return true end end end
 
 -- custom concat (applies 'tostring' to each item)
-local function concat(tbl_inp, delim, pos1, pos2)
+local function fnc_tbl_concat(tbl_inp, delim, pos1, pos2)
 --	assert(delim and pos1 and pos2)
-	local str = pos2 > 0 and tostring(tbl_inp[pos1]) or ''
-	for ii = pos1 + 1, pos2 do str = str..delim..tostring(tbl_inp[ii]) end
-	return str
+	local str_ret = pos2 > 0 and tostring(tbl_inp[pos1]) or ""
+	for ii = pos1 + 1, pos2 do str_ret = str_ret..delim..tostring(tbl_inp[ii]) end
+	return str_ret
 end
 
 local function luaexp_prompt(Title, Prompt, Src, nArgs)
@@ -291,16 +293,18 @@ local function luaexp_prompt(Title, Prompt, Src, nArgs)
 		if not	expr then break end
 		local	f, err = loadstring('return '..expr)
 		if	f
-		then	local	stat, res, n = getres(pcall(f))
+		then	local	stat, res, n = fnc_res_get(pcall(f))
 			if	stat
 			then
-				if not nArgs or (nArgs == n and not checknil(res, n))
+				if not	nArgs
+				or (	nArgs == n 
+				and not fnc_nil_chk(res, n) )
 				then	return res, n, expr
 				else	err = ([[
 %d argument(s) required
 
   Expression entered: %q
-  Evaluated as %d arg(s): %s]]):format(nArgs, expr, n, concat(res, ',', 1, n))
+  Evaluated as %d arg(s): %s]]):format(nArgs, expr, n, fnc_tbl_concat(res, ',', 1, n))
 				end
 			else
 				err = res
@@ -432,11 +436,11 @@ local function process(obj, path_title, action, obj_root, tbl_open_path, tbl_hid
 					)
 		if not args then return end
 		-- overwrite the function object with its return values
-		local	stat, res = getres(pcall(obj, unpack(args, 1, n)))
+		local	stat, res = fnc_res_get(pcall(obj, unpack(args, 1, n)))
 		if not	stat
 		then	far.Message(
 				('%s\n  CALL: %s (%s)\n  argument(s): %d'..(n > 0 and ', evaluated as: %s' or ''))
-					:format(res, path_title, expr, n, concat(args, ',', 1, n)),
+					:format(res, path_title, expr, n, fnc_tbl_concat(args, ',', 1, n)),
 				'Error', nil, 'wl'
 			)
 			return
